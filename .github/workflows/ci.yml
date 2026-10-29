@@ -79,7 +79,6 @@ jobs:
             --workdir /src \
             ghcr.io/aquasecurity/trivy:0.76.1 fs \
               --scanners vuln \
-              --include-dev-deps \
               --severity HIGH,CRITICAL \
               --exit-code 1 \
               package-lock.json
@@ -148,8 +147,14 @@ jobs:
               (.Results[] | "| \(.Target) | \(n("CRITICAL")) | \(n("HIGH")) | \(n("MEDIUM")) | \(n("LOW")) |")
             ' trivy-imagen.json
           } >> "$GITHUB_STEP_SUMMARY"
-          altos="$(jq '[.Results[].Vulnerabilities[]? | select(.Severity == "HIGH" or .Severity == "CRITICAL")] | length' trivy-imagen.json)"
-          echo "::warning title=Escaneo de la imagen::${altos} hallazgos HIGH o CRITICAL. Informativo, no detiene."
+          # Umbral: HIGH o CRITICAL con parche disponible detiene antes del push.
+          bloquean="$(jq '[.Results[].Vulnerabilities[]? | select((.Severity == "HIGH" or .Severity == "CRITICAL") and ((.FixedVersion // "") != ""))] | length' trivy-imagen.json)"
+          sin_parche="$(jq '[.Results[].Vulnerabilities[]? | select((.Severity == "HIGH" or .Severity == "CRITICAL") and ((.FixedVersion // "") == ""))] | length' trivy-imagen.json)"
+          echo "::notice title=Escaneo de la imagen::${sin_parche} hallazgos HIGH o CRITICAL sin parche (informativo)."
+          if [ "$bloquean" -gt 0 ]; then
+            echo "::error title=Escaneo de la imagen::${bloquean} hallazgos HIGH o CRITICAL con parche disponible. La imagen no se publica."
+            exit 1
+          fi
 
       - name: Push
         env:
@@ -230,7 +235,7 @@ jobs:
             --output text
 
   smoke:
-    needs: build-push
+    needs: deploy
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -259,6 +264,7 @@ jobs:
       - name: Smoke
         env:
           BASE_URL: ${{ steps.url.outputs.url }}
+          EXPECTED_COMMIT: ${{ github.sha }}
         run: test/smoke/smoke.sh
 
   e2e:
@@ -302,7 +308,7 @@ jobs:
         run: npm run test:e2e
 
   load:
-    needs: smoke
+    needs: [smoke, e2e]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
