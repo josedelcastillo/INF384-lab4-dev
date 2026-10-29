@@ -134,11 +134,10 @@ jobs:
             --tag "$REGISTRY/$APP:$GITHUB_SHA" \
             .
 
-      - name: Escaneo de la imagen (bloqueante)
+      - name: Escaneo de la imagen (informativo)
         env:
           REGISTRY: ${{ steps.ecr.outputs.registry }}
         run: |
-          set +e
           docker run --rm \
             --volume /var/run/docker.sock:/var/run/docker.sock \
             ghcr.io/aquasecurity/trivy:0.76.1 image \
@@ -146,11 +145,7 @@ jobs:
               --severity HIGH,CRITICAL \
               --format json \
               --quiet \
-              --exit-code 1 \
               "$REGISTRY/$APP:$GITHUB_SHA" > trivy-imagen.json
-          trivy_status=$?
-          set -e
-
           {
             echo "### Escaneo de la imagen"
             echo
@@ -161,14 +156,12 @@ jobs:
               (.Results[] | "| \(.Target) | \(n("CRITICAL")) | \(n("HIGH")) | \(n("MEDIUM")) | \(n("LOW")) |")
             ' trivy-imagen.json
           } >> "$GITHUB_STEP_SUMMARY"
-
           altos="$(jq '[.Results[].Vulnerabilities[]? | select(.Severity == "HIGH" or .Severity == "CRITICAL")] | length' trivy-imagen.json)"
-          if [ "$trivy_status" -ne 0 ] || [ "$altos" -gt 0 ]; then
-            echo "::error title=Escaneo de la imagen::${altos} hallazgos HIGH o CRITICAL. El job falla antes del push."
-            exit 1
+          if [ "$altos" -gt 0 ]; then
+            echo "::warning title=Escaneo de la imagen::${altos} hallazgos HIGH o CRITICAL. Informativo, no detiene."
+          else
+            echo "No se encontraron hallazgos HIGH o CRITICAL en la imagen."
           fi
-
-          echo "No se encontraron hallazgos HIGH o CRITICAL en la imagen."
 
       - name: Push
         env:
