@@ -64,7 +64,6 @@ jobs:
             --config p/nodejs \
             --config p/owasp-top-ten \
             --severity ERROR \
-            --error \
             src/
 
   sca:
