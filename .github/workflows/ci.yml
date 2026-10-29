@@ -134,6 +134,8 @@ jobs:
             --volume /var/run/docker.sock:/var/run/docker.sock \
             ghcr.io/aquasecurity/trivy:0.76.1 image \
               --scanners vuln \
+              --severity HIGH,CRITICAL \
+              --exit-code 0 \
               --format json \
               --quiet \
               "$REGISTRY/$APP:$GITHUB_SHA" > trivy-imagen.json
@@ -148,8 +150,11 @@ jobs:
             ' trivy-imagen.json
           } >> "$GITHUB_STEP_SUMMARY"
           altos="$(jq '[.Results[].Vulnerabilities[]? | select(.Severity == "HIGH" or .Severity == "CRITICAL")] | length' trivy-imagen.json)"
-          echo "::warning title=Escaneo de la imagen::${altos} hallazgos HIGH o CRITICAL. Informativo, no detiene."
-
+          
+          if [ "$altos" -gt 0 ]; then
+            echo "::error::La imagen contiene vulnerabilidades HIGH o CRITICAL"
+            exit 1
+          fi
       - name: Push
         env:
           REGISTRY: ${{ steps.ecr.outputs.registry }}
