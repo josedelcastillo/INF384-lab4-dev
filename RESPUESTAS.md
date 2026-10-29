@@ -35,8 +35,8 @@ Presupuesto: [ ] min  Métrica DORA: [ ]
 - Evidencia (dato observado, con link al run o fragmento de la salida local): https://github.com/lalvitesg/INF384-LAB4-20221943/actions/runs/40961363746
 
 ## Parte 2 · Implementación
-- Link al run en verde en main: 
-- Link al pull request:
+- Link al run en verde en main: https://github.com/lalvitesg/INF384-LAB4-20221943/actions/runs/40964057011
+- Link al pull request: 
 - Defecto de la aplicación introducido (archivo y descripción):
 - Job que debería detenerlo:
 - Link al run fallido:
