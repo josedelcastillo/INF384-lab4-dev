@@ -65,7 +65,10 @@ jobs:
             --config p/owasp-top-ten \
             --severity ERROR \
             --error \
-            src/
+            --exclude node_modules \
+            --exclude coverage \
+            --exclude dist \
+            .
 
   sca:
     runs-on: ubuntu-24.04
