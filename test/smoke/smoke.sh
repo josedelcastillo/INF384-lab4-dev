@@ -35,3 +35,6 @@ fi
 saldo="$(curl -fsS --max-time 10 "${url}/saldo/ana")"
 echo "$saldo" | jq -e '.usuario == "ana" and (.saldo | type == "number")' > /dev/null
 echo "saldo: ${saldo}"
+# prueba pr
+# prueba pr
+# prueba pr

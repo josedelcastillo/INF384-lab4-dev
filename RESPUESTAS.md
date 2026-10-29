@@ -1,20 +1,21 @@
 # Respuestas · Laboratorio 4
-Alumno: [código]
+Alumno: 20221029
 Presupuesto: [ ] min  Métrica DORA: [ ]
 
 ## Parte 1 · Diagnóstico
 ### Defecto 1
-- Job y etapa:
-- Problema que causa en el pipeline:
-- Link al commit:
-- Corrección (una o más: mover de etapa / dejar como informativo / eliminar / ajustar configuración / modificar tests):
-- Evidencia (dato observado, con link al run o fragmento de la salida local):
+- Job y etapa: smoke, etapa deploy (needs: build-push, al mismo nivel que deploy). Arrastra a e2e y load, que dependen de smoke.
+- Problema que causa en el pipeline: smoke corre en paralelo con deploy, no después. Puede consultar Lambda antes de que se actualice y aprobar contra la versión anterior. El paso Smoke tampoco define EXPECTED_COMMIT, así que smoke.sh omite la verificación de /version y nunca comprueba que lo desplegado sea el commit del run. Como e2e y load cuelgan de smoke, también pueden probar código viejo. Los bucles de reintento de 5 a 10 s ocultan la carrera y gastan tiempo.
+- Link al commit: https://github.com/criscal3/INF384-lab4-dev-20221029/commit/c37681e342e2a9377c72035b305d53e506870032
+- Corrección (una o más: mover de etapa / dejar como informativo / eliminar / ajustar configuración / modificar tests): mover de etapa + ajustar configuración. Cambiar a needs: deploy en smoke y agregar EXPECTED_COMMIT: ${{ github.sha }} en el env del paso Smoke.
+- Evidencia (dato observado, con link al run o fragmento de la salida local): Defecto en el run https://github.com/criscal3/INF384-lab4-dev-20221029/actions/runs/40957712520. El job smoke está en paralelo al job deploy. En el paso Smoke solo aparecen las líneas salud: y saldo:; falta la línea commit:, que smoke.sh imprime solo si EXPECTED_COMMIT está definida. La Lambda reportó el commit 49ba49ebee84f4c9f8b6943031595970311a3bb6, pero el script no lo comparó con el SHA del run.
 ### Defecto 2
-- Job y etapa:
-- Problema que causa en el pipeline:
-- Link al commit:
-- Corrección (una o más: mover de etapa / dejar como informativo / eliminar / ajustar configuración / modificar tests):
-- Evidencia (dato observado, con link al run o fragmento de la salida local):
+- Job y etapa: e2e, post-deploy (needs: smoke). Archivo test/e2e/api.spec.ts.
+- Problema que causa en el pipeline: 9 de los 10 tests usan page.request, es decir, llamadas HTTP a la API sin navegador. Repiten lo que ya cubren integration (lógica de negocio) y smoke (salud, versión, saldo). El único test con navegador hace page.goto a una respuesta JSON, que no valida ninguna interfaz. El job instala Chromium con --with-deps y ese tiempo se desperdicia. Además muta el estado compartido (transfiere elena→ana) mientras load corre en paralelo sobre los mismos usuarios.
+- Link al commit: https://github.com/criscal3/INF384-lab4-dev-20221029/commit/33a5b7dca740af43b2c27f4e83e542057982df39
+https://github.com/criscal3/INF384-lab4-dev-20221029/commit/45f276a9a4bbd9ad61453c90936ff4c24b9a9724
+- Corrección (una o más: mover de etapa / dejar como informativo / eliminar / ajustar configuración / modificar tests): modificar tests + eliminar + ajustar configuración. Usar el fixture request en vez de page, eliminar los tests duplicados y el de page.goto, y quitar el paso Navegador (npx playwright install).
+- Evidencia (dato observado, con link al run o fragmento de la salida local): En el run [link al run original], el job e2e duró 45 s en total. El paso Navegador (npx playwright install --with-deps chromium) tomó 21 s, es decir, el 47 % (21/45) del job, solo para instalar un navegador que casi no se usa. Con grep -c "page.request" test/e2e/api.spec.ts obtuve [9] y con grep -c "page.goto" test/e2e/api.spec.ts obtuve [1]. De 10 tests, 9 llaman a la API por HTTP sin navegador y el único que usa el navegador abre una respuesta JSON (/saldo/carla), no una interfaz.
 ### Defecto 3
 - Job y etapa:
 - Problema que causa en el pipeline:
