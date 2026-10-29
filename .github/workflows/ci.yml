@@ -147,8 +147,14 @@ jobs:
               (.Results[] | "| \(.Target) | \(n("CRITICAL")) | \(n("HIGH")) | \(n("MEDIUM")) | \(n("LOW")) |")
             ' trivy-imagen.json
           } >> "$GITHUB_STEP_SUMMARY"
-          altos="$(jq '[.Results[].Vulnerabilities[]? | select(.Severity == "HIGH" or .Severity == "CRITICAL")] | length' trivy-imagen.json)"
-          echo "::warning title=Escaneo de la imagen::${altos} hallazgos HIGH o CRITICAL. Informativo, no detiene."
+          # Umbral: HIGH o CRITICAL con parche disponible detiene antes del push.
+          bloquean="$(jq '[.Results[].Vulnerabilities[]? | select((.Severity == "HIGH" or .Severity == "CRITICAL") and ((.FixedVersion // "") != ""))] | length' trivy-imagen.json)"
+          sin_parche="$(jq '[.Results[].Vulnerabilities[]? | select((.Severity == "HIGH" or .Severity == "CRITICAL") and ((.FixedVersion // "") == ""))] | length' trivy-imagen.json)"
+          echo "::notice title=Escaneo de la imagen::${sin_parche} hallazgos HIGH o CRITICAL sin parche (informativo)."
+          if [ "$bloquean" -gt 0 ]; then
+            echo "::error title=Escaneo de la imagen::${bloquean} hallazgos HIGH o CRITICAL con parche disponible. La imagen no se publica."
+            exit 1
+          fi
 
       - name: Push
         env:
