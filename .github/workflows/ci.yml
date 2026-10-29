@@ -34,8 +34,6 @@ jobs:
 
   integration:
     runs-on: ubuntu-24.04
-    env:
-      DB_PATH: /tmp/wallet.db
     steps:
       - uses: actions/checkout@v7
 
@@ -45,6 +43,12 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      - name: Preparar base de datos de integración
+        run: |
+          export DB_PATH="$(mktemp /tmp/wallet.XXXXXX.db)"
+          echo "DB_PATH=$DB_PATH" >> "$GITHUB_ENV"
+          rm -f "$DB_PATH"
 
       - run: npm run test:integration
 
