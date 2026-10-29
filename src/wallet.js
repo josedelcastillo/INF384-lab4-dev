@@ -51,9 +51,7 @@ function transferir(store, { origen, destino, monto } = {}) {
     throw new ErrorNegocio(400, 'usuario inexistente');
   }
   const centimos = aCentimos(monto);
-  if (cuentaOrigen.saldo < centimos) {
-    throw new ErrorNegocio(400, 'saldo insuficiente');
-  }
+  // Defecto introducido: se elimina la validación de saldo suficiente.
   const id = store.transferir(origen, destino, centimos);
   return {
     id,
